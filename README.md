@@ -13,20 +13,20 @@
 ## 
 
 - `s01_zenodo_pipelineSetup.py`
-    general experiment analysis setup. 
+    - general experiment analysis setup. 
 - `s02_zenodo_compare_emg_ICAsource.py`
-    calculated the correlation between the EMG averaged epoch data and each of the first twenty ICA components’ averaged epoch data. 
-    Any ICA components that had a correlation coefficient higher than 0.4 were excluded as arising from speech movement artifacts.
+    - calculated the correlation between the EMG averaged epoch data and each of the first twenty ICA components’ averaged epoch data. 
+    - Any ICA components that had a correlation coefficient higher than 0.4 were excluded as arising from speech movement artifacts.
 - `s03_zenodo_analysis_surface_source.py`
-    generates Figure 2 & 3
-    generates all the results in section 3.2 and 3.3 
+    - generates Figure 2 & 3
+    - generates all the results in section 3.2 and 3.3 
 - `s04_zenodo_plot_sig_results_from_surface_source_analysis.py`
-    generates Figure 4 - 12
-    generates table 1-9
-    generates supplementary table S1 - S4
+    - generates Figure 4 - 12
+    - generates table 1-9
+    - generates supplementary table S1 - S4
 - `s05_zenodo_analysis_surface_source_regression.py`
-    generates supplementary Figure S4
-    generates supplementary Table S5
+    - generates supplementary Figure S4
+    - generates supplementary Table S5
 - `MEGspeechOnsetTimeStats_zenodo.Rmd`
-    generates result in section 3.1
-    geenrates supplementary Figure S3
+    - generates result in section 3.1
+    - geenrates supplementary Figure S3
