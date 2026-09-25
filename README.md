@@ -4,11 +4,11 @@
 
 ## preprint
 
-[![bioRxiv](https://img.shields.io/badge/bioRxiv-preprint-B31B1B)](https://doi.org/10.64898/2026.09.17.752155)
+[![bioRxiv](https://img.shields.io/badge/bioRxiv-10.64898%2F2026.09.17.752155-B31B1B)](https://doi.org/10.64898/2026.09.17.752155)
 
 ## data
 
-[![Zenodo](https://img.shields.io/badge/Zenodo-dataset-1682D4)](https://doi.org/10.5281/zenodo.22904305)
+[![Zenodo](https://img.shields.io/badge/Zenodo-10.5281%2Fzenodo.22904305-1682D4)](https://doi.org/10.5281/zenodo.22904305)
 
 ## 
 
