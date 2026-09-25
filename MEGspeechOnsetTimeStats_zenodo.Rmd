@@ -1,0 +1,237 @@
+---
+title: "agrammatism_exp7.3"
+author: "Yi Wei"
+date: "2025-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_knit$set(echo=TRUE)
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	tidy = TRUE,
+	tidy.opts = list(comment = FALSE)
+)
+
+library(tidyverse)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(dplyr)
+library(emmeans)
+library(ggsignif)
+
+
+```
+
+
+```{r read in files, include=FALSE}
+
+root_dir = "/Users/yiwei/Dropbox/agrammatism/MEGstudy/speechProductionData_zenodo"
+
+dataframes = list()
+
+csv_files <- list.files(root_dir, pattern = "responseOnsetTime.*\\.csv$", full.names = TRUE)
+csv_files <- csv_files[!basename(csv_files) %>% startsWith("~$")]
+
+  
+  # Read each .csv file and append the data frame to the list
+for (csv_file in csv_files) {
+  df <- read_csv(csv_file, show_col_types = FALSE)
+  dataframes <- append(dataframes, list(df))
+}
+
+
+# Concatenate all data frames into one
+combined_df <- bind_rows(dataframes)
+
+# Add the session column based on the filename
+combined_df <- combined_df %>%
+  mutate(session = case_when(
+    grepl("PF", filename) ~ 'picturefirst',
+    TRUE ~ NA_character_
+    )) %>%
+  mutate(wordCat = case_when(
+    wordType %in% c('nouncontrol', 'nounnm', 'nounpp', 'nounpc') ~ 'noun',
+    wordType %in% c('verbcontrol', 'verbnm', 'inffut', 'infpst') ~ 'verb',
+    TRUE ~ NA_character_
+    )) %>%
+  mutate(verbType = case_when(
+    trial %in% c(14, 75, 92, 96, 110, 161, 175, 216, 251, 263, 276, 294, 336, 374, 382) & (session == 'picturefirst')~ 'irregular',
+    TRUE ~ NA_character_
+    )) %>%
+  mutate(verbType = case_when(
+    !is.na(verbType) ~ verbType,
+    wordCat == 'verb' ~ 'regular',
+    TRUE ~ verbType
+    )) %>%
+  mutate(wordType2 = wordType) %>%
+  mutate(wordType2 = case_when(
+    (verbType == 'irregular') & (wordType == 'infpst') ~ 'infpstIrr',
+    (verbType == 'regular') & (wordType == 'infpst') ~ 'infpstReg',
+    TRUE ~ wordType2
+    )) %>%
+  mutate(MFA_sentence_onset = if_else(flag == 'flag', 
+                                      edited_onset_time,
+                                      MFA_sentence_onset,
+                                      missing = MFA_sentence_onset
+                                      ))
+    
+```
+
+```{r filter data, include=FALSE}
+
+left_handed_subjects <- c('R3135', 'R3205', 'R3210')
+
+filtered_data <- combined_df %>%
+  mutate(MFA_sentence_onset = MFA_sentence_onset - 0.257) %>%
+  filter(!subject %in% left_handed_subjects & is.na(incorrect)) %>%
+  filter(session == 'picturefirst') %>%
+  filter(wordType != 'nouncontrol') %>%
+  filter(wordType != 'verbcontrol')
+filtered_data$wordType <- as.factor(filtered_data$wordType)
+
+```
+
+
+### build regression model for noun conditions
+```{r regression model for noun conditions, echo=TRUE}
+
+filtered_data$wordType <- relevel(filtered_data$wordType, ref = 'nounnm')
+model_noun <- lmer(MFA_sentence_onset~wordType+(1+wordType|subject), data = filtered_data, subset = (wordCat == 'noun'))
+anova(model_noun)
+summary(model_noun)
+
+# Perform post-hoc pairwise comparisons using emmeans
+emmeans_results_noun <- emmeans(model_noun, pairwise ~ wordType)
+emmeans_results_noun
+
+```
+
+
+
+### Create a bar plot using ggplot2 for noun conditions
+```{r bar plot for noun conditions, echo=FALSE}
+
+# Create a data frame for plotting
+emmeans_df_noun <- as.data.frame(emmeans_results_noun$emmeans)
+contrasts_df_noun <- as.data.frame(emmeans_results_noun$contrasts)
+emmeans_df_noun$wordType <- factor(emmeans_df_noun$wordType, levels = c("nounnm", "nounpp", "nounpc"))
+
+p <- ggplot(emmeans_df_noun, aes(x = wordType, y = emmean, fill = wordType)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.2, position = position_dodge(width = 0.9)) +
+  labs(title = "MEG word onset time",
+       x = "wordType",
+       y = "Estimated Marginal Means of MFA onset time (s)") +
+  theme_minimal() +
+  ylim(0,1)
+
+comparisons <- list()
+annotations <- list()
+# Add p-values as text annotations
+for (i in 1:nrow(contrasts_df_noun)) {
+  contrast <- strsplit(as.character(contrasts_df_noun$contrast[i]), " - ")[[1]]
+  p_value <- contrasts_df_noun$p.value[i]
+  comparisons <- append(comparisons, list(contrast))
+  annotations <- append(annotations, p_value)
+}
+
+# Initialize a counter for y_position increments
+y_counter <- 0
+for (i in seq_along(comparisons)) {
+  comparison <- comparisons[[i]]
+  p_value <- annotations[[i]]
+  
+  if (p_value < 0.05) {
+    y_counter <- y_counter + 1
+        y_position <- max(emmeans_df_noun$upper.CL) + 0.3 * y_counter
+    # Add the p-value annotation
+    p <- p + geom_signif(
+      comparisons = list(comparison),
+      annotations = paste0("p = ", format(p_value, digits = 2)),
+      y_position = y_position,
+      tip_length = 0.2,
+    )
+  }
+}
+
+print(p)
+
+# ggsave("/Users/yiwei/Dropbox/agrammatism/plots/MFA_RT_noun_bar.pdf", p, height = 5, width = 8)
+
+```
+
+### build regression model for verb conditions
+```{r regression model for verb conditions, echo=TRUE}
+
+filtered_data$wordType <- relevel(filtered_data$wordType, ref = 'verbnm')
+model_verb <- lmer(MFA_sentence_onset~wordType+(1+wordType|subject), data = filtered_data, subset = (wordCat == 'verb'))
+anova(model_verb)
+summary(model_verb)
+
+# Perform post-hoc pairwise comparisons using emmeans
+emmeans_results_verb <- emmeans(model_verb, pairwise ~ wordType)
+emmeans_results_verb
+
+```
+
+
+
+### Create a bar plot using ggplot2 for verb conditions
+```{r bar plot for verb conditions, echo=FALSE}
+
+# Create a data frame for plotting
+emmeans_df_verb <- as.data.frame(emmeans_results_verb$emmeans)
+contrasts_df_verb <- as.data.frame(emmeans_results_verb$contrasts)
+
+emmeans_df_verb$wordType <- factor(emmeans_df_verb$wordType, levels = c("verbnm", "inffut", "infpst"))
+
+p <- ggplot(emmeans_df_verb, aes(x = wordType, y = emmean, fill = wordType)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.2, position = position_dodge(width = 0.9)) +
+  labs(title = "MEG word onset time",
+       x = "wordType",
+       y = "Estimated Marginal Means of MFA onset time (s)") +
+  theme_minimal() +
+  ylim(0,2.5)
+
+comparisons <- list()
+annotations <- list()
+# Add p-values as text annotations
+for (i in 1:nrow(contrasts_df_verb)) {
+  contrast <- strsplit(as.character(contrasts_df_verb$contrast[i]), " - ")[[1]]
+  p_value <- contrasts_df_verb$p.value[i]
+  comparisons <- append(comparisons, list(contrast))
+  annotations <- append(annotations, p_value)
+}
+
+# Initialize a counter for y_position increments
+y_counter <- 0
+for (i in seq_along(comparisons)) {
+  comparison <- comparisons[[i]]
+  p_value <- annotations[[i]]
+  
+  if (p_value < 0.05) {
+    y_counter <- y_counter + 1
+        y_position <- max(emmeans_df_verb$upper.CL) + 0.25 * y_counter
+    # Add the p-value annotation
+    p <- p + geom_signif(
+      comparisons = list(comparison),
+      annotations = paste0("p = ", format(p_value, digits = 2)),
+      y_position = y_position,
+      tip_length = 0.2,
+    )
+  }
+}
+
+print(p)
+
+# ggsave("/Users/yiwei/Dropbox/agrammatism/plots/MFA_RT_verb_bar.pdf", p, height = 5, width = 8)
+
+```
+
+
+

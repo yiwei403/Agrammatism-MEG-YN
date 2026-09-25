@@ -1,7 +1,7 @@
 
 import runpy
-runpy.run_path('/Users/yiwei/Dropbox/agrammatism/code/s01_eelbrain_pipelineSetup.py')
-from s01_eelbrain_pipelineSetup import *
+runpy.run_path('/Users/yiwei/Dropbox/agrammatism/code/Zenodo scripts/s01_zenodo_pipelineSetup.py')
+from s01_zenodo_pipelineSetup import *
 import scipy.io
 import scipy.io.wavfile
 import glob
@@ -25,13 +25,8 @@ mneEpochs = megData.load_epochs(epoch ='trial_'+session, samplingrate=1000, reje
 mneICAsourcesEpochs = mneICAepochs.get_sources(mneEpochs)
 
 # locate the correponding emg .mat file. 
-if session == 'iconfirst':
-    emgMatFile = glob.glob(os.path.join(os.path.dirname(data_path), "MNC", "raw data", 
-                        f'{subject}_*', f'{subject}_IF.mat'))
-    emgMatFile = scipy.io.loadmat(emgMatFile[0])
-    emgData = emgMatFile['b1']
-    
-elif session == 'picturefirst' and subject == 'R3160':
+   
+if session == 'picturefirst' and subject == 'R3160':
     
     emgMatFile_part1 = glob.glob(os.path.join(os.path.dirname(data_path), "MNC", "raw data", 
                         f'{subject}_*', f'{subject}_PF_part1.mat'))
@@ -80,15 +75,7 @@ emgEvents = np.zeros((len(emgTriggerTimes),3))
 emgEvents[:,0] = emgTrigger_ind.astype(int)
 emgEvents[:,1] = 0
 emgEvents[:,2] = 163
-
-# the 49th trigger 163 is missing from the iconfirst session of R3161 (see findMissingTrigger.py)
-if session == 'iconfirst' and subject == 'R3161':
-    megEvent_first_in_second = megData.load_events()['T'][0]
-    emgMegDiff_in_sample = emgTrigger_first_in_sample - (megEvent_first_in_second * emgFs-1)
-    missing_event = [int(megData.load_events()['i_start'][196]) + emgMegDiff_in_sample, 0, 163]
-    emgEvents = np.vstack([emgEvents, np.array(missing_event)])
-    emgEvents = emgEvents[emgEvents[:,0].argsort()]
-    
+   
 print(f'{len(emgEvents)} events in {subject}-{session}`s emg recording')
 
 # now I need to create an mne RawArray object for the cropped emg data.
@@ -172,19 +159,3 @@ print(f"Subject: {subject}, Session: {session}, \nERP corr: \n{erp_corr_results}
 #     event_color = {163: 'red'}
 #     )
 # plt.show()
-
-# %% trying out the EOGRegression mne method to regress out the speech artifact from the meg signal using the emg channel. 
-# does not seem to work :(
-    
-# from mne.preprocessing import EOGRegression
-# # Perform regression using the EOG sensor as independent variable and the EEG
-# # sensors as dependent variables.
-# epochs = mne.Epochs(megData_mne_filtered, all_events, event_id=163, preload=True)
-
-# model_plain = EOGRegression(picks="meg", picks_artifact="emg").fit(epochs)
-# fig = model_plain.plot(vlim=(None, 1))  # regression coefficients as topomap
-# fig.set_size_inches(6, 4)
-# epochs_clean_plain = model_plain.apply(epochs)
-
-# epochs.average('all').plot()
-# epochs_clean_plain.average('all').plot()
